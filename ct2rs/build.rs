@@ -219,6 +219,29 @@ fn build_ctranslate2() {
         );
     }
 
+    // CT2RS_PREBUILT_DIR: skip the CMake build entirely and link a
+    // prebuilt libctranslate2.a from this directory (headers still come from
+    // the checked-out CTranslate2 source tree). Intended for emulated build
+    // environments (e.g. QEMU loongarch64 CI) where compiling the C++ sources
+    // dominates wall time. The archive must be built with the same CMake
+    // configuration the build script would have used.
+    if let Ok(dir) = env::var("CT2RS_PREBUILT_DIR") {
+        if !dir.is_empty() {
+            let lib = std::path::Path::new(&dir).join("libctranslate2.a");
+            assert!(
+                lib.is_file(),
+                "CT2RS_PREBUILT_DIR is set but {} is missing",
+                lib.display()
+            );
+            println!("cargo:rustc-link-search=native={}", dir);
+            println!("cargo:rustc-link-lib=static=ctranslate2");
+            if cfg!(feature = "dnnl") {
+                println!("cargo:rustc-link-lib=dnnl");
+            }
+            return;
+        }
+    }
+
     let ctranslate2 = cmake.build();
     link_libraries(ctranslate2.join("build"));
 }
