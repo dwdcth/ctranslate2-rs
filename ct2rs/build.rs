@@ -184,8 +184,15 @@ fn build_ctranslate2() {
         // MSVC's `/openmp` emits a `/DEFAULTLIB:VCOMP` directive into every object, so
         // its OpenMP runtime is linked automatically and nothing is needed here. Other
         // toolchains, including `*-pc-windows-gnu` (MinGW/GCC), still require it.
-        if env::var("CARGO_CFG_TARGET_ENV").as_deref() != Ok("msvc") {
-            println!("cargo:rustc-link-lib=gomp");
+        match env::var("CARGO_CFG_TARGET_OS").as_deref() {
+            // Apple platforms have no libgomp; Homebrew's libomp provides the
+            // OpenMP runtime that CTranslate2's find_package(OpenMP) picked up
+            // (and whose path CMake already recorded in the link interface).
+            Ok("macos") | Ok("ios") => println!("cargo:rustc-link-lib=omp"),
+            _ if env::var("CARGO_CFG_TARGET_ENV").as_deref() != Ok("msvc") => {
+                println!("cargo:rustc-link-lib=gomp");
+            }
+            _ => {}
         }
         cmake.define("OPENMP_RUNTIME", "COMP");
     } else if openmp_intel {
