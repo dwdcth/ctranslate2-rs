@@ -165,6 +165,14 @@ fn build_ctranslate2() {
     if sse4_1 {
         cmake.define("CMAKE_CXX_FLAGS", "-msse4.1");
     }
+    // LoongArch: CTranslate2's CPU dispatch macro (cpu_isa.h) only covers
+    // x86_64/arm64 -- with CT2_WITH_CPU_DISPATCH defined, CPU_ISA_DISPATCH
+    // stays undefined for other arches and primitives.cc fails to compile.
+    // Disable the multi-ISA dispatch so the build takes the upstream
+    // GENERIC single-ISA fallback path.
+    if std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("loongarch64") {
+        cmake.define("ENABLE_CPU_DISPATCH", "OFF");
+    }
     if dnnl {
         cmake.define("WITH_DNNL", "ON");
         include_paths.push(PathBuf::from(env::var("DEP_DNNL_INCLUDE_PATH").unwrap()));
