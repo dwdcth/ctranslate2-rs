@@ -227,7 +227,14 @@ fn build_ctranslate2() {
     // configuration the build script would have used.
     if let Ok(dir) = env::var("CT2RS_PREBUILT_DIR") {
         if !dir.is_empty() {
-            let lib = std::path::Path::new(&dir).join("libctranslate2.a");
+            let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+            let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+            let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
+            let msvc = target_env == "msvc";
+            // MSVC 产物名 ctranslate2.lib / dnnl.lib；Unix 为 lib 前缀 .a/.dylib
+            let ct2_name = if msvc { "ctranslate2.lib" } else { "libctranslate2.a" };
+            let dir_path = std::path::Path::new(&dir);
+            let lib = dir_path.join(ct2_name);
             assert!(
                 lib.is_file(),
                 "CT2RS_PREBUILT_DIR is set but {} is missing",
@@ -235,8 +242,23 @@ fn build_ctranslate2() {
             );
             println!("cargo:rustc-link-search=native={}", dir);
             println!("cargo:rustc-link-lib=static=ctranslate2");
-            if cfg!(feature = "dnnl") {
-                println!("cargo:rustc-link-lib=dnnl");
+            if cfg!(feature = "dnnl-prebuilt") {
+                let dnnl_name = if msvc { "dnnl.lib" } else { "libdnnl.a" };
+                assert!(
+                    dir_path.join(dnnl_name).is_file(),
+                    "dnnl-prebuilt enabled but {} is missing",
+                    dir_path.join(dnnl_name).display()
+                );
+                println!("cargo:rustc-link-lib=static=dnnl");
+            }
+            // CTranslate2 在 x86_64 上依赖其 vendored cpu_features（CMake
+            // 源码构建时由 add_subdirectory 产出并链入）；预编译模式需随包
+            // 提供 cpu_features 归档（.a / .lib）。
+            if target_arch == "x86_64" {
+                let cf_name = if msvc { "cpu_features.lib" } else { "libcpu_features.a" };
+                if dir_path.join(cf_name).is_file() {
+                    println!("cargo:rustc-link-lib=static=cpu_features");
+                }
             }
             return;
         }

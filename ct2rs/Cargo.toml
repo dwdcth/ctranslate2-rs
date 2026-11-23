@@ -85,6 +85,9 @@ mkl = ["dep:intel-onemkl-prebuild"]
 system-mkl = ["mkl", "intel-onemkl-prebuild/system"]
 openblas = ["dep:openblas-src"]
 dnnl = ["dep:onednn-src"]
+# 预编译 oneDNN：与 dnnl 互斥使用（CT2RS_PREBUILT_DIR 模式下链接
+# 预编译归档里的 dnnl 库，不拉起 onednn-src 的源码编译）。
+dnnl-prebuilt = []
 ruy = []
 accelerate = []
 openmp-runtime-comp = []
